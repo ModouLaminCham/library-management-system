@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build output
+backend/target/
+frontend/dist/
+
+# Environment files (never commit real secrets)
+.env
+frontend/.env
+!.env.example
+!frontend/.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+*.iml
+.idea/
+*.swp
+
+# Maven
+backend/.mvn/wrapper/maven-wrapper.jar
