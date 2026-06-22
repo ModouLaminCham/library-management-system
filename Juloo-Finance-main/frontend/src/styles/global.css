@@ -1,0 +1,18 @@
+/* Global gradient background */
+.app-bg {
+  min-height: 100vh;
+  background-image: linear-gradient(
+    to top,
+    #a3bce2,
+    #a5cae9,
+    #aad7ee,
+    #b4e3f2,
+    #c1eff5
+  );
+}
+
+/* Remove default body margin */
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
