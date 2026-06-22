@@ -32,7 +32,7 @@ public class WebSecurityConfig {
     @Autowired
     UserDetailsServiceImpl userDetailsService;
 
-    @Value("${library.app.allowedOrigins:http://localhost:3000,http://localhost:3001}")
+    @Value("${library.app.allowedOrigins:http://localhost:3000,http://localhost:3001,http://kik228eeckfcg423g0hv58oz.144.91.83.71.sslip.io/}")
     private String allowedOrigins;
 
     @Bean
