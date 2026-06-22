@@ -18,7 +18,7 @@ COPY . .
 # must be a build arg (not a runtime container env var) for it to take effect.
 # Pass it via `docker compose build --build-arg` or docker-compose.yml's
 # build.args (see docker-compose.yml).
-ARG VITE_API_BASE_URL=http://localhost:8080/api
+ARG VITE_API_BASE_URL=http://kik228eeckfcg423g0hv58oz.144.91.83.71.sslip.io
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
 # Build the application
