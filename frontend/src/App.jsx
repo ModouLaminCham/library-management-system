@@ -5,6 +5,8 @@ import Navbar from './components/Navbar';
 import Books from './pages/Books';
 import Members from './pages/Members';
 import Borrowing from './pages/Borrowing';
+import MyLoans from './pages/MyLoans';
+import UserManagement from './pages/UserManagement';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
@@ -36,6 +38,8 @@ function App() {
             <Route path="/books" element={<Books />} />
             <Route path="/members" element={<Members />} />
             <Route path="/borrowing" element={<Borrowing />} />
+            <Route path="/my-books" element={<MyLoans />} />
+            <Route path="/users" element={<UserManagement />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Routes>

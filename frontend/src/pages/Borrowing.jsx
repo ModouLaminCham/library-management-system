@@ -1,28 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Typography,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Box,
-  Chip,
-  Grid,
-  Alert,
-  Divider,
-  DialogContentText,
+  Typography, Button, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Paper, Dialog, DialogTitle, DialogContent,
+  DialogActions, FormControl, InputLabel, Select, MenuItem, Box,
+  Chip, Grid, Alert, Divider, DialogContentText,
 } from '@mui/material';
 import { Add, Undo, Warning, AttachMoney, CompareArrows, CheckCircle } from '@mui/icons-material';
 import { booksApi, membersApi, borrowingApi } from '../services/api';
@@ -30,7 +11,6 @@ import { useSnackbar } from 'notistack';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-// Fine rate: $0.50 per day overdue
 const FINE_RATE_PER_DAY = 0.50;
 
 const GoldDivider = () => (
@@ -39,22 +19,11 @@ const GoldDivider = () => (
 
 const StatCard = ({ value, label, sublabel, color = '#c8a96e' }) => (
   <Paper sx={{
-    p: 3.5,
-    borderRadius: '12px',
-    bgcolor: '#132a1e',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 0.5,
-    position: 'relative',
-    overflow: 'hidden',
+    p: 3.5, borderRadius: '12px', bgcolor: '#132a1e',
+    display: 'flex', flexDirection: 'column', gap: 0.5,
+    position: 'relative', overflow: 'hidden',
     '&::before': {
-      content: '""',
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      height: '3px',
-      background: color,
+      content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: color,
     },
   }}>
     <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontSize: '0.65rem', color: '#9db8a8', letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700 }}>
@@ -70,6 +39,7 @@ const StatCard = ({ value, label, sublabel, color = '#c8a96e' }) => (
 );
 
 const calculateFine = (dueDateStr) => {
+  if (!dueDateStr) return 0;
   const due = new Date(dueDateStr);
   const now = new Date();
   if (now <= due) return 0;
@@ -79,13 +49,12 @@ const calculateFine = (dueDateStr) => {
 };
 
 const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString(undefined, {
-  year: 'numeric', month: 'short', day: 'numeric'
+  year: 'numeric', month: 'short', day: 'numeric',
 });
 
 const selectSx = {
   '& .MuiOutlinedInput-root': {
-    borderRadius: '8px',
-    bgcolor: 'rgba(0,0,0,0.2)',
+    borderRadius: '8px', bgcolor: 'rgba(0,0,0,0.2)',
     fontFamily: '"DM Sans", sans-serif',
     '& fieldset': { borderColor: 'rgba(200,169,110,0.2)' },
     '&:hover fieldset': { borderColor: 'rgba(200,169,110,0.4)' },
@@ -97,18 +66,19 @@ const selectSx = {
 
 const Borrowing = () => {
   const [borrowingRecords, setBorrowingRecords] = useState([]);
+  const [historyRecords, setHistoryRecords] = useState([]);
   const [books, setBooks] = useState([]);
   const [members, setMembers] = useState([]);
   const [open, setOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [fineDialogOpen, setFineDialogOpen] = useState(false);
   const [recordToReturn, setRecordToReturn] = useState(null);
-  const [returnedRecord, setReturnedRecord] = useState(null); // the response after return
+  const [returnedRecord, setReturnedRecord] = useState(null);
   const [overdueBooks, setOverdueBooks] = useState([]);
+  const [view, setView] = useState('active');
   const { enqueueSnackbar } = useSnackbar();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-
   const [formData, setFormData] = useState({ bookId: '', memberId: '' });
 
   useEffect(() => {
@@ -120,17 +90,21 @@ const Borrowing = () => {
       return;
     }
     loadData();
-  }, [user, loading]);
+  }, [user, loading, view]);
 
   const loadData = async () => {
     try {
-      const [borrowingRes, booksRes, membersRes, overdueRes] = await Promise.all([
-        borrowingApi.getActive(),
+      const promises = [
+        view === 'active'
+          ? borrowingApi.getActive()
+          : borrowingApi.getHistory(),
         booksApi.getAvailable(),
         membersApi.getActive(),
         borrowingApi.getOverdue(),
-      ]);
-      setBorrowingRecords(borrowingRes.data);
+      ];
+      const [recordsRes, booksRes, membersRes, overdueRes] = await Promise.all(promises);
+      if (view === 'active') setBorrowingRecords(recordsRes.data);
+      else setHistoryRecords(recordsRes.data);
       setBooks(booksRes.data);
       setMembers(membersRes.data);
       setOverdueBooks(overdueRes.data);
@@ -166,9 +140,7 @@ const Borrowing = () => {
       const record = response.data;
       setReturnDialogOpen(false);
       setRecordToReturn(null);
-
       if (record.fineAmount > 0) {
-        // Show fine payment dialog
         setReturnedRecord(record);
         setFineDialogOpen(true);
       } else {
@@ -186,11 +158,31 @@ const Borrowing = () => {
     setFineDialogOpen(false);
     setReturnedRecord(null);
     loadData();
-    enqueueSnackbar('Fine recorded. Book return complete.', { variant: 'success' });
+    enqueueSnackbar('Book return complete.', { variant: 'success' });
   };
 
-  // Compute fine preview for a record that's currently overdue
+  const handlePayFine = async (id) => {
+    try {
+      await borrowingApi.payFine(id);
+      enqueueSnackbar('Fine paid', { variant: 'success' });
+      loadData();
+    } catch (err) {
+      enqueueSnackbar(err.response?.data?.message || 'Error paying fine', { variant: 'error' });
+    }
+  };
+
+  const handleWaiveFine = async (id) => {
+    try {
+      await borrowingApi.waiveFine(id);
+      enqueueSnackbar('Fine waived', { variant: 'success' });
+      loadData();
+    } catch (err) {
+      enqueueSnackbar(err.response?.data?.message || 'Error waiving fine', { variant: 'error' });
+    }
+  };
+
   const getFinePreview = (record) => {
+    if (!record.dueDate) return null;
     const isOverdue = new Date(record.dueDate) < new Date();
     if (!isOverdue) return null;
     return calculateFine(record.dueDate);
@@ -198,22 +190,19 @@ const Borrowing = () => {
 
   if (!user) return null;
 
+  const records = view === 'active' ? borrowingRecords : historyRecords;
   const totalFinesOwed = borrowingRecords
-    .filter(r => new Date(r.dueDate) < new Date())
+    .filter(r => r.dueDate && new Date(r.dueDate) < new Date())
     .reduce((sum, r) => sum + calculateFine(r.dueDate), 0);
 
   return (
     <Box sx={{ width: '100%', flexGrow: 1 }} className="page-enter">
-      {/* Header */}
       <Box sx={{ mb: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <Box>
           <Typography sx={{
             fontFamily: '"Cormorant Garamond", serif',
             fontSize: { xs: '2rem', md: '3rem' },
-            fontWeight: 700,
-            color: '#c8a96e',
-            lineHeight: 1,
-            mb: 1,
+            fontWeight: 700, color: '#c8a96e', lineHeight: 1, mb: 1,
           }}>
             Circulation Hub
           </Typography>
@@ -226,7 +215,6 @@ const Borrowing = () => {
         </Button>
       </Box>
 
-      {/* Stat Cards */}
       <Grid container spacing={3} sx={{ mb: 5 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard value={borrowingRecords.length} label="Active Loans" sublabel="Books currently out" color="#c8a96e" />
@@ -247,35 +235,35 @@ const Borrowing = () => {
         </Grid>
       </Grid>
 
-      {/* Overdue Alert */}
-      {overdueBooks.length > 0 && (
+      {overdueBooks.length > 0 && view === 'active' && (
         <Box sx={{
-          mb: 4,
-          p: 3,
-          borderRadius: '12px',
+          mb: 4, p: 3, borderRadius: '12px',
           bgcolor: 'rgba(248,113,113,0.07)',
           border: '1px solid rgba(248,113,113,0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
+          display: 'flex', alignItems: 'center', gap: 2,
         }}>
           <Warning sx={{ color: '#f87171', fontSize: '1.5rem', flexShrink: 0 }} />
           <Typography sx={{ fontFamily: '"DM Sans", sans-serif', color: '#f87171', fontWeight: 600, fontSize: '0.9rem', flexGrow: 1 }}>
-            {overdueBooks.length} item{overdueBooks.length > 1 ? 's are' : ' is'} overdue. Fines of ${FINE_RATE_PER_DAY.toFixed(2)}/day are accruing automatically.
+            {overdueBooks.length} item{overdueBooks.length > 1 ? 's are' : ' is'} overdue.
           </Typography>
-          <Chip
-            label={`$${totalFinesOwed.toFixed(2)} total`}
-            sx={{ bgcolor: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 700 }}
-          />
+          <Chip label={`$${totalFinesOwed.toFixed(2)} total`} sx={{ bgcolor: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 700 }} />
         </Box>
       )}
 
-      {/* Table */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+        <Button variant={view === 'active' ? 'contained' : 'outlined'} onClick={() => setView('active')}>
+          Active Loans
+        </Button>
+        <Button variant={view === 'history' ? 'contained' : 'outlined'} onClick={() => setView('history')}>
+          All History
+        </Button>
+      </Box>
+
       <TableContainer component={Paper} sx={{ borderRadius: '12px', overflow: 'hidden', bgcolor: '#132a1e' }}>
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: 'rgba(200,169,110,0.08)' }}>
-              {['Book', 'Member', 'Borrowed', 'Due Date', 'Status / Fine', 'Action'].map((h) => (
+              {['Book', 'Member', 'Borrowed', view === 'history' ? 'Returned' : 'Due Date', 'Status / Fine', 'Action'].map((h) => (
                 <TableCell key={h} sx={{
                   color: '#c8a96e', fontFamily: '"DM Sans", sans-serif', fontWeight: 700,
                   fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase',
@@ -287,18 +275,19 @@ const Borrowing = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {borrowingRecords.length === 0 ? (
+            {records.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 12 }}>
                   <CompareArrows sx={{ fontSize: '3rem', color: 'rgba(200,169,110,0.2)', mb: 2, display: 'block', mx: 'auto' }} />
                   <Typography sx={{ fontFamily: '"Cormorant Garamond", serif', fontSize: '1.5rem', color: '#9db8a8' }}>
-                    No active loans
+                    {view === 'active' ? 'No active loans' : 'No borrowing history'}
                   </Typography>
                 </TableCell>
               </TableRow>
-            ) : borrowingRecords.map((record) => {
-              const isOverdue = new Date(record.dueDate) < new Date();
-              const finePreview = getFinePreview(record);
+            ) : records.map((record) => {
+              const isOverdue = record.dueDate && !record.returned && new Date(record.dueDate) < new Date();
+              const finePreview = !record.returned ? getFinePreview(record) : 0;
+              const hasFine = record.fineAmount > 0;
               return (
                 <TableRow key={record.id} hover sx={{
                   '&:hover': { bgcolor: 'rgba(200,169,110,0.04)' },
@@ -321,57 +310,67 @@ const Borrowing = () => {
                   </TableCell>
                   <TableCell>
                     <Typography sx={{
-                      fontFamily: '"DM Sans", sans-serif',
-                      fontSize: '0.85rem',
+                      fontFamily: '"DM Sans", sans-serif', fontSize: '0.85rem',
                       fontWeight: isOverdue ? 700 : 400,
                       color: isOverdue ? '#f87171' : '#9db8a8',
                     }}>
-                      {formatDate(record.dueDate)}
+                      {view === 'history' ? formatDate(record.returnDate || record.dueDate) : formatDate(record.dueDate)}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Chip
-                        label={isOverdue ? 'Overdue' : 'On Loan'}
-                        size="small"
-                        sx={{
-                          bgcolor: isOverdue ? 'rgba(248,113,113,0.1)' : 'rgba(96,165,250,0.1)',
-                          color: isOverdue ? '#f87171' : '#60a5fa',
-                          border: `1px solid ${isOverdue ? 'rgba(248,113,113,0.3)' : 'rgba(96,165,250,0.3)'}`,
-                          ...(isOverdue ? { animation: 'finePulse 2s ease infinite' } : {}),
-                        }}
-                      />
-                      {finePreview !== null && finePreview > 0 && (
+                      {!record.returned ? (
+                        <Chip label={isOverdue ? 'Overdue' : 'On Loan'} size="small"
+                          sx={{
+                            bgcolor: isOverdue ? 'rgba(248,113,113,0.1)' : 'rgba(96,165,250,0.1)',
+                            color: isOverdue ? '#f87171' : '#60a5fa',
+                            border: `1px solid ${isOverdue ? 'rgba(248,113,113,0.3)' : 'rgba(96,165,250,0.3)'}`,
+                          }}
+                        />
+                      ) : (
+                        <Chip label={hasFine ? 'Returned w/ Fine' : 'Returned OK'} size="small"
+                          color={hasFine ? 'warning' : 'success'}
+                        />
+                      )}
+                      {(finePreview > 0 || hasFine) && (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           <AttachMoney sx={{ fontSize: '0.75rem', color: '#fbbf24' }} />
                           <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontSize: '0.75rem', color: '#fbbf24', fontWeight: 700 }}>
-                            ${finePreview.toFixed(2)} accrued
+                            ${(finePreview || record.fineAmount || 0).toFixed(2)} {!record.returned ? 'accrued' : 'fine'}
                           </Typography>
                         </Box>
                       )}
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<Undo sx={{ fontSize: '0.85rem !important' }} />}
-                      onClick={() => handleReturnClick(record)}
-                      sx={{
-                        fontFamily: '"DM Sans", sans-serif',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        borderRadius: '8px',
-                        borderColor: isOverdue ? 'rgba(248,113,113,0.4)' : 'rgba(200,169,110,0.3)',
-                        color: isOverdue ? '#f87171' : '#c8a96e',
-                        '&:hover': {
-                          borderColor: isOverdue ? '#f87171' : '#c8a96e',
-                          bgcolor: isOverdue ? 'rgba(248,113,113,0.08)' : 'rgba(200,169,110,0.08)',
-                        },
-                      }}
-                    >
-                      Return
-                    </Button>
+                    {!record.returned && (
+                      <Button variant="outlined" size="small"
+                        startIcon={<Undo sx={{ fontSize: '0.85rem !important' }} />}
+                        onClick={() => handleReturnClick(record)}
+                        sx={{
+                          fontFamily: '"DM Sans", sans-serif', fontSize: '0.8rem', fontWeight: 600,
+                          borderRadius: '8px',
+                          borderColor: isOverdue ? 'rgba(248,113,113,0.4)' : 'rgba(200,169,110,0.3)',
+                          color: isOverdue ? '#f87171' : '#c8a96e',
+                          '&:hover': {
+                            borderColor: isOverdue ? '#f87171' : '#c8a96e',
+                            bgcolor: isOverdue ? 'rgba(248,113,113,0.08)' : 'rgba(200,169,110,0.08)',
+                          },
+                        }}
+                      >
+                        Return
+                      </Button>
+                    )}
+                    {record.returned && hasFine && (
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Button size="small" variant="outlined" color="success" onClick={() => handlePayFine(record.id)}>
+                          Pay
+                        </Button>
+                        <Button size="small" variant="outlined" color="warning" onClick={() => handleWaiveFine(record.id)}>
+                          Waive
+                        </Button>
+                      </Box>
+                    )}
                   </TableCell>
                 </TableRow>
               );
@@ -380,7 +379,6 @@ const Borrowing = () => {
         </Table>
       </TableContainer>
 
-      {/* ─── Issue Loan Dialog ─── */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontFamily: '"Cormorant Garamond", serif', fontSize: '1.6rem', fontWeight: 700, color: '#c8a96e', pb: 1 }}>
           Issue New Loan
@@ -410,7 +408,7 @@ const Borrowing = () => {
             </FormControl>
             <Box sx={{ p: 2, borderRadius: '8px', bgcolor: 'rgba(200,169,110,0.06)', border: '1px solid rgba(200,169,110,0.15)' }}>
               <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontSize: '0.82rem', color: '#9db8a8' }}>
-                📋 Late returns accrue a fine of <Box component="span" sx={{ color: '#fbbf24', fontWeight: 700 }}>${FINE_RATE_PER_DAY.toFixed(2)} per day</Box> after the due date. Fines are calculated automatically at return.
+                Late returns accrue a fine of <Box component="span" sx={{ color: '#fbbf24', fontWeight: 700 }}>${FINE_RATE_PER_DAY.toFixed(2)} per day</Box> after the 14-day loan period.
               </Typography>
             </Box>
           </Box>
@@ -423,7 +421,6 @@ const Borrowing = () => {
         </DialogActions>
       </Dialog>
 
-      {/* ─── Confirm Return Dialog ─── */}
       <Dialog open={returnDialogOpen} onClose={() => setReturnDialogOpen(false)}>
         <DialogTitle sx={{ fontFamily: '"Cormorant Garamond", serif', fontSize: '1.4rem', color: '#c8a96e' }}>
           Confirm Return
@@ -431,7 +428,7 @@ const Borrowing = () => {
         <GoldDivider />
         <DialogContent sx={{ pt: 2.5 }}>
           {recordToReturn && (() => {
-            const isOverdue = new Date(recordToReturn.dueDate) < new Date();
+            const isOverdue = recordToReturn.dueDate && new Date(recordToReturn.dueDate) < new Date();
             const fine = calculateFine(recordToReturn.dueDate);
             return (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -441,16 +438,13 @@ const Borrowing = () => {
                 </DialogContentText>
                 {isOverdue && fine > 0 && (
                   <Box sx={{
-                    p: 2.5,
-                    borderRadius: '10px',
+                    p: 2.5, borderRadius: '10px',
                     bgcolor: 'rgba(251,191,36,0.08)',
                     border: '1px solid rgba(251,191,36,0.25)',
                   }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                       <AttachMoney sx={{ color: '#fbbf24' }} />
-                      <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontWeight: 700, color: '#fbbf24' }}>
-                        Late Return Fine
-                      </Typography>
+                      <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontWeight: 700, color: '#fbbf24' }}>Late Return Fine</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                       <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontSize: '0.85rem', color: '#9db8a8' }}>Due date</Typography>
@@ -461,10 +455,6 @@ const Borrowing = () => {
                       <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontSize: '0.85rem', color: '#f87171' }}>
                         {Math.ceil((new Date() - new Date(recordToReturn.dueDate)) / (1000 * 60 * 60 * 24))} days
                       </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontSize: '0.85rem', color: '#9db8a8' }}>Rate</Typography>
-                      <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontSize: '0.85rem', color: '#9db8a8' }}>${FINE_RATE_PER_DAY.toFixed(2)} / day</Typography>
                     </Box>
                     <Divider sx={{ my: 1.5, borderColor: 'rgba(251,191,36,0.2)' }} />
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -482,12 +472,11 @@ const Borrowing = () => {
         <DialogActions sx={{ p: 2.5, gap: 1 }}>
           <Button onClick={() => setReturnDialogOpen(false)} sx={{ color: '#9db8a8' }}>Cancel</Button>
           <Button onClick={confirmReturn} variant="contained">
-            {recordToReturn && new Date(recordToReturn.dueDate) < new Date() ? 'Return & Record Fine' : 'Confirm Return'}
+            {recordToReturn && recordToReturn.dueDate && new Date(recordToReturn.dueDate) < new Date() ? 'Return & Record Fine' : 'Confirm Return'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* ─── Fine Confirmed Dialog ─── */}
       <Dialog open={fineDialogOpen} onClose={handleFineAcknowledge} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontFamily: '"Cormorant Garamond", serif', fontSize: '1.6rem', fontWeight: 700, color: '#fbbf24', pb: 1 }}>
           Fine Issued
@@ -497,14 +486,10 @@ const Borrowing = () => {
           {returnedRecord && (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, textAlign: 'center' }}>
               <Box sx={{
-                width: 72,
-                height: 72,
-                borderRadius: '50%',
+                width: 72, height: 72, borderRadius: '50%',
                 bgcolor: 'rgba(251,191,36,0.1)',
                 border: '2px solid rgba(251,191,36,0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <AttachMoney sx={{ color: '#fbbf24', fontSize: '2rem' }} />
               </Box>
@@ -513,34 +498,14 @@ const Borrowing = () => {
                   ${returnedRecord.fineAmount?.toFixed(2)}
                 </Typography>
                 <Typography sx={{ fontFamily: '"DM Sans", sans-serif', color: '#9db8a8', mt: 0.5 }}>
-                  fine due from <Box component="span" sx={{ color: '#f0ece3' }}>{returnedRecord.memberName || returnedRecord.member?.name || 'this member'}</Box>
+                  fine due from <Box component="span" sx={{ color: '#f0ece3' }}>{returnedRecord.memberName || returnedRecord.member?.name}</Box>
                 </Typography>
               </Box>
-              <Box sx={{ width: '100%', p: 2, borderRadius: '8px', bgcolor: 'rgba(200,169,110,0.05)', border: '1px solid rgba(200,169,110,0.12)', textAlign: 'left' }}>
-                <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontSize: '0.82rem', color: '#9db8a8', mb: 1 }}>
-                  <strong style={{ color: '#c8a96e' }}>Book:</strong> {returnedRecord.bookTitle || returnedRecord.book?.title || 'N/A'}
-                </Typography>
-                <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontSize: '0.82rem', color: '#9db8a8', mb: 1 }}>
-                  <strong style={{ color: '#c8a96e' }}>Returned:</strong> {formatDate(returnedRecord.returnDate || new Date())}
-                </Typography>
-                <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontSize: '0.82rem', color: '#9db8a8' }}>
-                  <strong style={{ color: '#c8a96e' }}>Days late:</strong>{' '}
-                  {Math.ceil(returnedRecord.fineAmount / FINE_RATE_PER_DAY)} days × ${FINE_RATE_PER_DAY.toFixed(2)}/day
-                </Typography>
-              </Box>
-              <Typography sx={{ fontFamily: '"DM Sans", sans-serif', fontSize: '0.82rem', color: '#9db8a8' }}>
-                Please collect payment from the member. The fine has been recorded in the system.
-              </Typography>
             </Box>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1, justifyContent: 'center' }}>
-          <Button
-            onClick={handleFineAcknowledge}
-            variant="contained"
-            startIcon={<CheckCircle />}
-            sx={{ px: 4 }}
-          >
+          <Button onClick={handleFineAcknowledge} variant="contained" startIcon={<CheckCircle />} sx={{ px: 4 }}>
             Acknowledge & Close
           </Button>
         </DialogActions>

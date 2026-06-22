@@ -24,7 +24,7 @@ public class BorrowingService {
     private final BookRepository bookRepository;
     private final MemberRepository memberRepository;
 
-    private static final double DAILY_FINE_RATE = 0.50; // $0.50 per day
+    public static final double DAILY_FINE_RATE = 0.50;
 
     public List<BorrowingRecord> getAllBorrowingRecords() {
         return borrowingRecordRepository.findAll();
@@ -49,20 +49,17 @@ public class BorrowingService {
             throw new RuntimeException("Book is not available for borrowing");
         }
 
-        // Check if member has any overdue books
         List<BorrowingRecord> overdueBooks = getOverdueBooksByMember(memberId);
         if (!overdueBooks.isEmpty()) {
             throw new RuntimeException("Member has overdue books and cannot borrow new books");
         }
 
-        // Create borrowing record
         BorrowingRecord borrowingRecord = new BorrowingRecord();
         borrowingRecord.setBook(book);
         borrowingRecord.setMember(member);
         borrowingRecord.setBorrowDate(LocalDate.now());
-        borrowingRecord.setDueDate(LocalDate.now().plusDays(14)); // 2 weeks
+        borrowingRecord.setDueDate(LocalDate.now().plusDays(14));
 
-        // Mark book as unavailable
         book.setAvailable(false);
         bookRepository.save(book);
 
@@ -77,7 +74,6 @@ public class BorrowingService {
             throw new RuntimeException("Book has already been returned");
         }
 
-        // Calculate fine if overdue
         LocalDate returnDate = LocalDate.now();
         if (returnDate.isAfter(borrowingRecord.getDueDate())) {
             long daysOverdue = ChronoUnit.DAYS.between(borrowingRecord.getDueDate(), returnDate);
@@ -88,7 +84,6 @@ public class BorrowingService {
         borrowingRecord.setReturnDate(returnDate);
         borrowingRecord.setReturned(true);
 
-        // Mark book as available
         Book book = borrowingRecord.getBook();
         book.setAvailable(true);
         bookRepository.save(book);
@@ -98,6 +93,10 @@ public class BorrowingService {
 
     public List<BorrowingRecord> getBorrowingRecordsByMember(Long memberId) {
         return borrowingRecordRepository.findActiveBorrowingsByMember(memberId);
+    }
+
+    public List<BorrowingRecord> getMemberHistory(Long memberId) {
+        return borrowingRecordRepository.findByMemberId(memberId);
     }
 
     public List<BorrowingRecord> getOverdueBooks() {
@@ -113,5 +112,25 @@ public class BorrowingService {
 
     public void deleteBorrowingRecord(Long id) {
         borrowingRecordRepository.deleteById(id);
+    }
+
+    public BorrowingRecord payFine(Long borrowingRecordId) {
+        BorrowingRecord record = borrowingRecordRepository.findById(borrowingRecordId)
+                .orElseThrow(() -> new RuntimeException("Borrowing record not found"));
+        if (record.getFineAmount() == null || record.getFineAmount() == 0) {
+            throw new RuntimeException("No fine to pay on this record");
+        }
+        record.setFineAmount(0.0);
+        return borrowingRecordRepository.save(record);
+    }
+
+    public BorrowingRecord waiveFine(Long borrowingRecordId) {
+        BorrowingRecord record = borrowingRecordRepository.findById(borrowingRecordId)
+                .orElseThrow(() -> new RuntimeException("Borrowing record not found"));
+        if (record.getFineAmount() == null || record.getFineAmount() == 0) {
+            throw new RuntimeException("No fine to waive on this record");
+        }
+        record.setFineAmount(0.0);
+        return borrowingRecordRepository.save(record);
     }
 }

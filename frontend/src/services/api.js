@@ -1,9 +1,5 @@
 import axios from 'axios';
 
-// In production this must be set at build time (see frontend/Dockerfile and
-// docker-compose.yml's VITE_API_BASE_URL build arg) because Vite inlines
-// import.meta.env.* values into the static bundle at build time — there is no
-// way to change this after the app is built and served as static files.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
 const api = axios.create({
@@ -38,11 +34,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-      console.error(`${error.response.status} - Token may be invalid, expired, or insufficient permissions`);
-      // Only force a logout+redirect for actual auth failures (401), not
-      // authorization failures on an otherwise-valid session (403, e.g. a
-      // regular user hitting an admin-only endpoint) — a 403 shouldn't log
-      // the person out of a session that is still valid.
       if (error.response.status === 401) {
         localStorage.removeItem('user');
         window.location.href = '/login';
@@ -56,6 +47,7 @@ api.interceptors.response.use(
 export const authApi = {
   login: (credentials) => api.post('/auth/signin', credentials),
   register: (userData) => api.post('/auth/signup', userData),
+  changePassword: (data) => api.put('/auth/change-password', data),
 };
 
 // Books API
@@ -95,6 +87,24 @@ export const borrowingApi = {
   getOverdue: () => api.get('/borrowing/overdue'),
   getOverdueByMember: (memberId) => api.get(`/borrowing/overdue/member/${memberId}`),
   delete: (id) => api.delete(`/borrowing/${id}`),
+  getHistory: () => api.get('/borrowing/history'),
+  getMemberHistory: (memberId) => api.get(`/borrowing/member/${memberId}/history`),
+  payFine: (id) => api.post(`/borrowing/${id}/pay-fine`),
+  waiveFine: (id) => api.post(`/borrowing/${id}/waive-fine`),
+  getMyBooks: () => api.get('/borrowing/my-books'),
+  getMyHistory: () => api.get('/borrowing/my-history'),
+  borrowMyBook: (bookId) => api.post(`/borrowing/my-borrow/${bookId}`),
+  returnMyBook: (id) => api.post(`/borrowing/my-return/${id}`),
+};
+
+// Users API (admin)
+export const usersApi = {
+  getAll: () => api.get('/users'),
+  getById: (id) => api.get(`/users/${id}`),
+  updateRoles: (id, roles) => api.put(`/users/${id}/roles`, { roles }),
+  toggleEnabled: (id) => api.put(`/users/${id}/toggle-enabled`),
+  delete: (id) => api.delete(`/users/${id}`),
+  getMemberId: (id) => api.get(`/users/${id}/member-id`),
 };
 
 export default api;

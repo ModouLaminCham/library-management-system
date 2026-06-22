@@ -29,9 +29,8 @@ public class Member {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @NotBlank(message = "Phone number is required")
     @Column(nullable = false)
-    private String phoneNumber;
+    private String phoneNumber = "";
 
     private String address;
 

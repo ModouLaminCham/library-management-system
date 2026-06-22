@@ -18,6 +18,8 @@ public interface BorrowingRecordRepository extends JpaRepository<BorrowingRecord
 
     List<BorrowingRecord> findByReturnedFalse();
 
+    List<BorrowingRecord> findByMemberId(Long memberId);
+
     @Query("SELECT br FROM BorrowingRecord br WHERE br.dueDate < :currentDate AND br.returned = false")
     List<BorrowingRecord> findOverdueBooks(@Param("currentDate") LocalDate currentDate);
 
