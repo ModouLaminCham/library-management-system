@@ -3,10 +3,11 @@ package com.example.library.service;
 import com.example.library.model.Member;
 import com.example.library.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -16,12 +17,12 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
 
-    public List<Member> getAllMembers() {
-        return memberRepository.findAll();
+    public Page<Member> getAllMembers(Pageable pageable) {
+        return memberRepository.findAll(pageable);
     }
 
-    public List<Member> getActiveMembers() {
-        return memberRepository.findByActiveTrue();
+    public Page<Member> getActiveMembers(Pageable pageable) {
+        return memberRepository.findByActiveTrue(pageable);
     }
 
     public Optional<Member> getMemberById(Long id) {
@@ -53,7 +54,7 @@ public class MemberService {
         memberRepository.deleteById(id);
     }
 
-    public List<Member> searchMembersByName(String name) {
-        return memberRepository.findByNameContainingIgnoreCase(name);
+    public Page<Member> searchMembersByName(String name, Pageable pageable) {
+        return memberRepository.findByNameContainingIgnoreCase(name, pageable);
     }
 }

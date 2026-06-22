@@ -40,6 +40,8 @@ public class Book {
 
     private String description;
 
+    private String coverImageUrl;
+
     @Column(nullable = false)
     private Boolean available = true;
 

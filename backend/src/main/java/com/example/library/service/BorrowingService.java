@@ -7,6 +7,9 @@ import com.example.library.repository.BookRepository;
 import com.example.library.repository.BorrowingRecordRepository;
 import com.example.library.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,12 +29,12 @@ public class BorrowingService {
 
     public static final double DAILY_FINE_RATE = 0.50;
 
-    public List<BorrowingRecord> getAllBorrowingRecords() {
-        return borrowingRecordRepository.findAll();
+    public Page<BorrowingRecord> getAllBorrowingRecords(Pageable pageable) {
+        return borrowingRecordRepository.findAll(pageable);
     }
 
-    public List<BorrowingRecord> getActiveBorrowingRecords() {
-        return borrowingRecordRepository.findByReturnedFalse();
+    public Page<BorrowingRecord> getActiveBorrowingRecords(Pageable pageable) {
+        return borrowingRecordRepository.findByReturnedFalse(pageable);
     }
 
     public Optional<BorrowingRecord> getBorrowingRecordById(Long id) {
@@ -39,6 +42,10 @@ public class BorrowingService {
     }
 
     public BorrowingRecord borrowBook(Long bookId, Long memberId) {
+        return borrowBook(bookId, memberId, null);
+    }
+
+    public BorrowingRecord borrowBook(Long bookId, Long memberId, LocalDate customDueDate) {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new RuntimeException("Book not found with id: " + bookId));
 
@@ -54,11 +61,16 @@ public class BorrowingService {
             throw new RuntimeException("Member has overdue books and cannot borrow new books");
         }
 
+        LocalDate dueDate = customDueDate != null ? customDueDate : LocalDate.now().plusDays(14);
+        if (dueDate.isBefore(LocalDate.now())) {
+            throw new RuntimeException("Due date cannot be in the past");
+        }
+
         BorrowingRecord borrowingRecord = new BorrowingRecord();
         borrowingRecord.setBook(book);
         borrowingRecord.setMember(member);
         borrowingRecord.setBorrowDate(LocalDate.now());
-        borrowingRecord.setDueDate(LocalDate.now().plusDays(14));
+        borrowingRecord.setDueDate(dueDate);
 
         book.setAvailable(false);
         bookRepository.save(book);
@@ -91,23 +103,37 @@ public class BorrowingService {
         return borrowingRecordRepository.save(borrowingRecord);
     }
 
-    public List<BorrowingRecord> getBorrowingRecordsByMember(Long memberId) {
-        return borrowingRecordRepository.findActiveBorrowingsByMember(memberId);
+    public Page<BorrowingRecord> getBorrowingRecordsByMember(Long memberId, Pageable pageable) {
+        return borrowingRecordRepository.findActiveBorrowingsByMember(memberId, pageable);
     }
 
-    public List<BorrowingRecord> getMemberHistory(Long memberId) {
-        return borrowingRecordRepository.findByMemberId(memberId);
+    public Page<BorrowingRecord> getMemberHistory(Long memberId, Pageable pageable) {
+        return borrowingRecordRepository.findByMemberId(memberId, pageable);
     }
 
     public List<BorrowingRecord> getOverdueBooks() {
-        return borrowingRecordRepository.findOverdueBooks(LocalDate.now());
+        return borrowingRecordRepository.findOverdueBooks(LocalDate.now(), Pageable.unpaged()).getContent();
+    }
+
+    public Page<BorrowingRecord> getOverdueBooks(Pageable pageable) {
+        return borrowingRecordRepository.findOverdueBooks(LocalDate.now(), pageable);
     }
 
     public List<BorrowingRecord> getOverdueBooksByMember(Long memberId) {
-        List<BorrowingRecord> overdueBooks = getOverdueBooks();
-        return overdueBooks.stream()
+        return borrowingRecordRepository.findOverdueBooks(LocalDate.now(), Pageable.unpaged()).getContent().stream()
                 .filter(record -> record.getMember().getId().equals(memberId))
                 .toList();
+    }
+
+    public Page<BorrowingRecord> getOverdueBooksByMember(Long memberId, Pageable pageable) {
+        List<BorrowingRecord> allOverdue = borrowingRecordRepository.findOverdueBooks(LocalDate.now(), Pageable.unpaged()).getContent();
+        List<BorrowingRecord> filtered = allOverdue.stream()
+                .filter(record -> record.getMember().getId().equals(memberId))
+                .toList();
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), filtered.size());
+        List<BorrowingRecord> pageContent = start > filtered.size() ? List.of() : filtered.subList(start, end);
+        return new PageImpl<>(pageContent, pageable, filtered.size());
     }
 
     public void deleteBorrowingRecord(Long id) {

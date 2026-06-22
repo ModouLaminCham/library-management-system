@@ -1,6 +1,8 @@
 package com.example.library.repository;
 
 import com.example.library.model.BorrowingRecord;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,13 +18,15 @@ public interface BorrowingRecordRepository extends JpaRepository<BorrowingRecord
 
     List<BorrowingRecord> findByBookIdAndReturnedFalse(Long bookId);
 
-    List<BorrowingRecord> findByReturnedFalse();
+    Page<BorrowingRecord> findByReturnedFalse(Pageable pageable);
 
-    List<BorrowingRecord> findByMemberId(Long memberId);
+    Page<BorrowingRecord> findByMemberId(Long memberId, Pageable pageable);
 
-    @Query("SELECT br FROM BorrowingRecord br WHERE br.dueDate < :currentDate AND br.returned = false")
-    List<BorrowingRecord> findOverdueBooks(@Param("currentDate") LocalDate currentDate);
+    @Query(value = "SELECT br FROM BorrowingRecord br WHERE br.dueDate < :currentDate AND br.returned = false",
+           countQuery = "SELECT COUNT(br) FROM BorrowingRecord br WHERE br.dueDate < :currentDate AND br.returned = false")
+    Page<BorrowingRecord> findOverdueBooks(@Param("currentDate") LocalDate currentDate, Pageable pageable);
 
-    @Query("SELECT br FROM BorrowingRecord br WHERE br.member.id = :memberId AND br.returned = false")
-    List<BorrowingRecord> findActiveBorrowingsByMember(@Param("memberId") Long memberId);
+    @Query(value = "SELECT br FROM BorrowingRecord br WHERE br.member.id = :memberId AND br.returned = false",
+           countQuery = "SELECT COUNT(br) FROM BorrowingRecord br WHERE br.member.id = :memberId AND br.returned = false")
+    Page<BorrowingRecord> findActiveBorrowingsByMember(@Param("memberId") Long memberId, Pageable pageable);
 }

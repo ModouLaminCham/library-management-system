@@ -7,32 +7,18 @@ import Members from './pages/Members';
 import Borrowing from './pages/Borrowing';
 import MyLoans from './pages/MyLoans';
 import UserManagement from './pages/UserManagement';
+import GenreManagement from './pages/GenreManagement';
+import Holds from './pages/Holds';
+import Reports from './pages/Reports';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
 function App() {
   return (
     <Router>
-      <Box sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
-        width: '100vw',
-        overflowX: 'hidden',
-        bgcolor: 'background.default',
-      }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100vw', overflowX: 'hidden', bgcolor: 'background.default' }}>
         <Navbar />
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            width: '100%',
-            maxWidth: '100%',
-            p: { xs: 2, md: 4, lg: 6 },
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
+        <Box component="main" sx={{ flexGrow: 1, width: '100%', maxWidth: '100%', p: { xs: 2, md: 4, lg: 6 }, display: 'flex', flexDirection: 'column' }}>
           <Routes>
             <Route path="/" element={<Books />} />
             <Route path="/books" element={<Books />} />
@@ -40,6 +26,9 @@ function App() {
             <Route path="/borrowing" element={<Borrowing />} />
             <Route path="/my-books" element={<MyLoans />} />
             <Route path="/users" element={<UserManagement />} />
+            <Route path="/genres" element={<GenreManagement />} />
+            <Route path="/holds" element={<Holds />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Routes>

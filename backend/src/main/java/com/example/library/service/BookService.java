@@ -3,10 +3,11 @@ package com.example.library.service;
 import com.example.library.model.Book;
 import com.example.library.repository.BookRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -16,12 +17,12 @@ public class BookService {
 
     private final BookRepository bookRepository;
 
-    public List<Book> getAllBooks() {
-        return bookRepository.findAll();
+    public Page<Book> getAllBooks(Pageable pageable) {
+        return bookRepository.findAll(pageable);
     }
 
-    public List<Book> getAvailableBooks() {
-        return bookRepository.findByAvailableTrue();
+    public Page<Book> getAvailableBooks(Pageable pageable) {
+        return bookRepository.findByAvailableTrue(pageable);
     }
 
     public Optional<Book> getBookById(Long id) {
@@ -51,19 +52,19 @@ public class BookService {
         bookRepository.deleteById(id);
     }
 
-    public List<Book> searchBooksByTitle(String title) {
-        return bookRepository.findByTitleContainingIgnoreCase(title);
+    public Page<Book> searchBooksByTitle(String title, Pageable pageable) {
+        return bookRepository.findByTitleContainingIgnoreCase(title, pageable);
     }
 
-    public List<Book> searchAvailableBooksByTitle(String title) {
-        return bookRepository.findAvailableByTitleContainingIgnoreCase(title);
+    public Page<Book> searchAvailableBooksByTitle(String title, Pageable pageable) {
+        return bookRepository.findAvailableByTitleContainingIgnoreCase(title, pageable);
     }
 
-    public List<Book> getBooksByAuthor(String author) {
-        return bookRepository.findByAuthor(author);
+    public Page<Book> getBooksByAuthor(String author, Pageable pageable) {
+        return bookRepository.findByAuthor(author, pageable);
     }
 
-    public List<Book> getBooksByGenre(String genre) {
-        return bookRepository.findByGenre(genre);
+    public Page<Book> getBooksByGenre(String genre, Pageable pageable) {
+        return bookRepository.findByGenre(genre, pageable);
     }
 }

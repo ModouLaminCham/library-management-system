@@ -1,75 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Typography,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Box,
-  Chip,
-  IconButton,
-  InputAdornment,
-  DialogContentText,
+  Typography, Button, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Paper, Dialog, DialogTitle, DialogContent,
+  DialogActions, TextField, Box, Chip, IconButton, InputAdornment,
+  DialogContentText, MenuItem, Avatar,
 } from '@mui/material';
-import { Add, Edit, Delete, Search, AutoStories } from '@mui/icons-material';
-import { booksApi } from '../services/api';
+import { Add, Edit, Delete, Search, AutoStories, Collections } from '@mui/icons-material';
+import { booksApi, genresApi } from '../services/api';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../context/AuthContext';
+import PaginationBar from '../components/PaginationBar';
 
 const GoldDivider = () => (
   <Box sx={{ height: 1, background: 'linear-gradient(to right, transparent, rgba(200,169,110,0.4), transparent)', my: 0 }} />
 );
 
 const Books = () => {
-  const [books, setBooks] = useState([]);
+  const [pageData, setPageData] = useState({ content: [], totalPages: 0, totalElements: 0, number: 0 });
+  const [genres, setGenres] = useState([]);
   const [open, setOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bookToDelete, setBookToDelete] = useState(null);
   const [editingBook, setEditingBook] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(0);
   const { enqueueSnackbar } = useSnackbar();
   const { user } = useAuth();
 
   const [formData, setFormData] = useState({
-    title: '', author: '', isbn: '', genre: '', publicationYear: '', description: '',
+    title: '', author: '', isbn: '', genre: '', publicationYear: '',
+    description: '', coverImageUrl: '',
   });
 
-  useEffect(() => { loadBooks(); }, []);
+  useEffect(() => { loadBooks(); }, [page]);
+  useEffect(() => { loadGenres(); }, []);
 
   const loadBooks = async () => {
     try {
-      const response = await booksApi.getAll();
-      setBooks(response.data);
-    } catch {
-      enqueueSnackbar('Error loading books', { variant: 'error' });
-    }
+      const response = await booksApi.getAll({ page, size: 15 });
+      setPageData(response.data);
+    } catch { enqueueSnackbar('Error loading books', { variant: 'error' }); }
+  };
+
+  const loadGenres = async () => {
+    try {
+      const response = await genresApi.getAll();
+      setGenres(response.data);
+    } catch { /* genres optional */ }
   };
 
   const handleSearch = async () => {
+    setPage(0);
     if (!searchTerm.trim()) { loadBooks(); return; }
     try {
-      const response = await booksApi.search(searchTerm);
-      setBooks(response.data);
-    } catch {
-      enqueueSnackbar('Error searching books', { variant: 'error' });
-    }
+      const response = await booksApi.search(searchTerm, { page: 0, size: 15 });
+      setPageData(response.data);
+    } catch { enqueueSnackbar('Error searching books', { variant: 'error' }); }
   };
 
   const handleOpenDialog = (book = null) => {
     setEditingBook(book);
     setFormData(book ? {
       title: book.title, author: book.author, isbn: book.isbn,
-      genre: book.genre, publicationYear: book.publicationYear, description: book.description || '',
-    } : { title: '', author: '', isbn: '', genre: '', publicationYear: '', description: '' });
+      genre: book.genre, publicationYear: book.publicationYear,
+      description: book.description || '', coverImageUrl: book.coverImageUrl || '',
+    } : { title: '', author: '', isbn: '', genre: '', publicationYear: '', description: '', coverImageUrl: '' });
     setOpen(true);
   };
 
@@ -79,7 +74,7 @@ const Books = () => {
       return;
     }
     try {
-      const bookData = { ...formData, publicationYear: parseInt(formData.publicationYear) };
+      const bookData = { ...formData, publicationYear: parseInt(formData.publicationYear) || null };
       if (editingBook) {
         await booksApi.update(editingBook.id, bookData);
         enqueueSnackbar('Book updated successfully', { variant: 'success' });
@@ -111,12 +106,12 @@ const Books = () => {
 
   const isAdmin = user?.roles?.includes('ROLE_ADMIN');
   const isUser = user?.roles?.includes('ROLE_USER') || isAdmin;
+  const books = pageData.content || [];
   const available = books.filter(b => b.available).length;
 
   const fieldSx = {
     '& .MuiOutlinedInput-root': {
-      borderRadius: '8px',
-      bgcolor: 'rgba(0,0,0,0.2)',
+      borderRadius: '8px', bgcolor: 'rgba(0,0,0,0.2)',
       '& fieldset': { borderColor: 'rgba(200,169,110,0.2)' },
       '&:hover fieldset': { borderColor: 'rgba(200,169,110,0.4)' },
       '&.Mui-focused fieldset': { borderColor: '#c8a96e' },
@@ -126,75 +121,47 @@ const Books = () => {
 
   return (
     <Box sx={{ width: '100%', flexGrow: 1 }} className="page-enter">
-      {/* Header */}
       <Box sx={{ mb: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <Box>
           <Typography sx={{
-            fontFamily: '"Cormorant Garamond", serif',
-            fontSize: { xs: '2rem', md: '3rem' },
-            fontWeight: 700,
-            color: '#c8a96e',
-            lineHeight: 1,
-            mb: 1,
+            fontFamily: '"Cormorant Garamond", serif', fontSize: { xs: '2rem', md: '3rem' },
+            fontWeight: 700, color: '#c8a96e', lineHeight: 1, mb: 1,
           }}>
             The Collection
           </Typography>
           <Typography sx={{ fontFamily: '"DM Sans", sans-serif', color: '#9db8a8', fontSize: '0.95rem' }}>
-            {available} available · {books.length - available} on loan · {books.length} total volumes
+            {available} available · {books.length - available} on loan · {pageData.totalElements} total volumes
           </Typography>
         </Box>
         {isUser && (
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => handleOpenDialog()}
-            sx={{ px: 3, py: 1.5 }}
-          >
+          <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()} sx={{ px: 3, py: 1.5 }}>
             Add Volume
           </Button>
         )}
       </Box>
 
-      {/* Search */}
       <Paper sx={{ p: 1, mb: 4, display: 'flex', gap: 1.5, bgcolor: 'rgba(19,42,30,0.8)', borderRadius: '10px' }}>
         <TextField
-          fullWidth
-          placeholder="Search title, author, or ISBN..."
-          variant="standard"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+          fullWidth placeholder="Search title, author, or ISBN..." variant="standard"
+          value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           InputProps={{
             disableUnderline: true,
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search sx={{ color: '#9db8a8', ml: 1, mr: 1 }} />
-              </InputAdornment>
-            ),
+            startAdornment: <InputAdornment position="start"><Search sx={{ color: '#9db8a8', ml: 1, mr: 1 }} /></InputAdornment>,
             sx: { fontFamily: '"DM Sans", sans-serif', color: '#f0ece3', height: 46 },
           }}
         />
-        <Button variant="contained" onClick={handleSearch} sx={{ px: 4, flexShrink: 0 }}>
-          Search
-        </Button>
+        <Button variant="contained" onClick={handleSearch} sx={{ px: 4, flexShrink: 0 }}>Search</Button>
+        <Button variant="outlined" onClick={() => { setSearchTerm(''); setPage(0); loadBooks(); }} sx={{ flexShrink: 0 }}>Clear</Button>
       </Paper>
 
-      {/* Table */}
       <TableContainer component={Paper} sx={{ borderRadius: '12px', overflow: 'hidden', bgcolor: '#132a1e' }}>
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: 'rgba(200,169,110,0.08)' }}>
+              <TableCell sx={{ color: '#c8a96e', fontFamily: '"DM Sans", sans-serif', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', py: 2, borderBottom: '1px solid rgba(200,169,110,0.2)', width: 50 }}></TableCell>
               {['Title & Author', 'Genre', 'ISBN', 'Year', 'Status', ...(isUser ? [''] : [])].map((h) => (
-                <TableCell key={h} sx={{
-                  color: '#c8a96e',
-                  fontFamily: '"DM Sans", sans-serif',
-                  fontWeight: 700,
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.12em',
-                  textTransform: 'uppercase',
-                  py: 2,
-                  borderBottom: '1px solid rgba(200,169,110,0.2)',
-                }}>
+                <TableCell key={h} sx={{ color: '#c8a96e', fontFamily: '"DM Sans", sans-serif', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', py: 2, borderBottom: '1px solid rgba(200,169,110,0.2)' }}>
                   {h}
                 </TableCell>
               ))}
@@ -203,7 +170,7 @@ const Books = () => {
           <TableBody>
             {books.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 12 }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 12 }}>
                   <AutoStories sx={{ fontSize: '3rem', color: 'rgba(200,169,110,0.2)', mb: 2, display: 'block', mx: 'auto' }} />
                   <Typography sx={{ fontFamily: '"Cormorant Garamond", serif', fontSize: '1.5rem', color: '#9db8a8' }}>
                     The shelves are empty
@@ -213,9 +180,17 @@ const Books = () => {
             ) : books.map((book) => (
               <TableRow key={book.id} hover sx={{
                 '&:hover': { bgcolor: 'rgba(200,169,110,0.04)' },
-                '&:last-child td': { border: 0 },
-                transition: 'background 0.15s',
+                '&:last-child td': { border: 0 }, transition: 'background 0.15s',
               }}>
+                <TableCell sx={{ py: 2 }}>
+                  {book.coverImageUrl ? (
+                    <Avatar src={book.coverImageUrl} variant="rounded" sx={{ width: 40, height: 56 }} />
+                  ) : (
+                    <Box sx={{ width: 40, height: 56, borderRadius: '6px', bgcolor: 'rgba(200,169,110,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Collections sx={{ color: 'rgba(200,169,110,0.3)', fontSize: '1.2rem' }} />
+                    </Box>
+                  )}
+                </TableCell>
                 <TableCell sx={{ py: 2.5, maxWidth: 260 }}>
                   <Typography sx={{ fontFamily: '"Cormorant Garamond", serif', fontWeight: 600, fontSize: '1.05rem', color: '#f0ece3' }}>
                     {book.title}
@@ -225,22 +200,12 @@ const Books = () => {
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    label={book.genre}
-                    size="small"
-                    sx={{
-                      bgcolor: 'rgba(200,169,110,0.1)',
-                      color: '#c8a96e',
-                      border: '1px solid rgba(200,169,110,0.25)',
-                    }}
-                  />
+                  <Chip label={book.genre} size="small" sx={{ bgcolor: 'rgba(200,169,110,0.1)', color: '#c8a96e', border: '1px solid rgba(200,169,110,0.25)' }} />
                 </TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', color: '#9db8a8', fontSize: '0.8rem' }}>{book.isbn}</TableCell>
                 <TableCell sx={{ fontFamily: '"DM Sans", sans-serif', color: '#9db8a8' }}>{book.publicationYear}</TableCell>
                 <TableCell>
-                  <Chip
-                    label={book.available ? 'Available' : 'On Loan'}
-                    size="small"
+                  <Chip label={book.available ? 'Available' : 'On Loan'} size="small"
                     sx={{
                       bgcolor: book.available ? 'rgba(74,222,128,0.1)' : 'rgba(251,191,36,0.1)',
                       color: book.available ? '#4ade80' : '#fbbf24',
@@ -251,17 +216,11 @@ const Books = () => {
                 {isUser && (
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-                      <IconButton size="small" onClick={() => handleOpenDialog(book)} sx={{
-                        color: '#9db8a8', bgcolor: 'rgba(200,169,110,0.08)',
-                        '&:hover': { bgcolor: 'rgba(200,169,110,0.15)', color: '#c8a96e' },
-                      }}>
+                      <IconButton size="small" onClick={() => handleOpenDialog(book)} sx={{ color: '#9db8a8', bgcolor: 'rgba(200,169,110,0.08)', '&:hover': { bgcolor: 'rgba(200,169,110,0.15)', color: '#c8a96e' } }}>
                         <Edit sx={{ fontSize: '0.9rem' }} />
                       </IconButton>
                       {isAdmin && (
-                        <IconButton size="small" onClick={() => { setBookToDelete(book); setDeleteDialogOpen(true); }} sx={{
-                          color: '#9db8a8', bgcolor: 'rgba(248,113,113,0.06)',
-                          '&:hover': { bgcolor: 'rgba(248,113,113,0.15)', color: '#f87171' },
-                        }}>
+                        <IconButton size="small" onClick={() => { setBookToDelete(book); setDeleteDialogOpen(true); }} sx={{ color: '#9db8a8', bgcolor: 'rgba(248,113,113,0.06)', '&:hover': { bgcolor: 'rgba(248,113,113,0.15)', color: '#f87171' } }}>
                           <Delete sx={{ fontSize: '0.9rem' }} />
                         </IconButton>
                       )}
@@ -274,7 +233,8 @@ const Books = () => {
         </Table>
       </TableContainer>
 
-      {/* Add/Edit Dialog */}
+      <PaginationBar page={pageData.number} totalPages={pageData.totalPages} totalElements={pageData.totalElements} onPageChange={setPage} />
+
       <Dialog open={open} onClose={() => { setOpen(false); setEditingBook(null); }} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontFamily: '"Cormorant Garamond", serif', fontSize: '1.6rem', fontWeight: 700, color: '#c8a96e', pb: 1 }}>
           {editingBook ? 'Edit Volume' : 'Catalogue New Volume'}
@@ -285,12 +245,15 @@ const Books = () => {
             <TextField label="Title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} required fullWidth sx={fieldSx} />
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField label="Author" value={formData.author} onChange={(e) => setFormData({ ...formData, author: e.target.value })} required fullWidth sx={fieldSx} />
-              <TextField label="Genre" value={formData.genre} onChange={(e) => setFormData({ ...formData, genre: e.target.value })} fullWidth sx={fieldSx} />
+              <TextField select label="Genre" value={formData.genre} onChange={(e) => setFormData({ ...formData, genre: e.target.value })} fullWidth sx={fieldSx}>
+                {genres.map((g) => <MenuItem key={g.id} value={g.name}>{g.name}</MenuItem>)}
+              </TextField>
             </Box>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField label="ISBN" value={formData.isbn} onChange={(e) => setFormData({ ...formData, isbn: e.target.value })} required fullWidth sx={fieldSx} />
               <TextField label="Year" type="number" value={formData.publicationYear} onChange={(e) => setFormData({ ...formData, publicationYear: e.target.value })} fullWidth sx={fieldSx} />
             </Box>
+            <TextField label="Cover Image URL" value={formData.coverImageUrl} onChange={(e) => setFormData({ ...formData, coverImageUrl: e.target.value })} fullWidth sx={fieldSx} />
             <TextField label="Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} multiline rows={3} fullWidth sx={fieldSx} />
           </Box>
         </DialogContent>
@@ -300,7 +263,6 @@ const Books = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
         <DialogTitle sx={{ fontFamily: '"Cormorant Garamond", serif', fontSize: '1.4rem', color: '#f87171' }}>Remove Volume</DialogTitle>
         <GoldDivider />
@@ -311,10 +273,7 @@ const Books = () => {
         </DialogContent>
         <DialogActions sx={{ p: 2.5, gap: 1 }}>
           <Button onClick={() => setDeleteDialogOpen(false)} sx={{ color: '#9db8a8' }}>Cancel</Button>
-          <Button onClick={confirmDelete} sx={{
-            bgcolor: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)',
-            '&:hover': { bgcolor: 'rgba(248,113,113,0.2)' },
-          }}>
+          <Button onClick={confirmDelete} sx={{ bgcolor: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', '&:hover': { bgcolor: 'rgba(248,113,113,0.2)' } }}>
             Remove Permanently
           </Button>
         </DialogActions>

@@ -1,56 +1,43 @@
 package com.example.library.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import jakarta.servlet.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.io.IOException;
 
 @Configuration
 public class CorsConfig {
 
-    @Value("${library.app.allowedorigins:*}")
-    private String allowedOrigins;
-
     @Bean
-    public FilterRegistrationBean<CorsFilter> corsFilterRegistration() {
-        CorsConfiguration configuration = new CorsConfiguration();
+    public FilterRegistrationBean<Filter> corsFilterRegistration() {
+        FilterRegistrationBean<Filter> bean = new FilterRegistrationBean<>();
+        bean.setFilter(new Filter() {
+            @Override
+            public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
+                    throws IOException, ServletException {
+                HttpServletResponse response = (HttpServletResponse) res;
+                HttpServletRequest request = (HttpServletRequest) req;
 
-        List<String> origins = parseOrigins(allowedOrigins);
+                response.setHeader("Access-Control-Allow-Origin", "*");
+                response.setHeader("Access-Control-Allow-Methods", "*");
+                response.setHeader("Access-Control-Allow-Headers", "*");
+                response.setHeader("Access-Control-Max-Age", "3600");
 
-        boolean hasWildcard = origins.contains("*");
-        if (hasWildcard) {
-            configuration.addAllowedOriginPattern("*");
-        } else {
-            configuration.setAllowedOrigins(origins);
-        }
+                if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+                    response.setStatus(HttpServletResponse.SC_OK);
+                    return;
+                }
 
-        configuration.addAllowedMethod("*");
-        configuration.addAllowedHeader("*");
-        configuration.setAllowCredentials(false);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-
-        FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsFilter(source));
+                chain.doFilter(req, res);
+            }
+        });
         bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        bean.addUrlPatterns("/*");
         return bean;
-    }
-
-    private List<String> parseOrigins(String origins) {
-        if (origins == null || origins.isBlank()) {
-            return List.of("*");
-        }
-        return Stream.of(origins.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toList());
     }
 }
