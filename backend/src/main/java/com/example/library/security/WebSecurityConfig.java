@@ -79,7 +79,8 @@ public class WebSecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedEntryPoint()))
             .authorizeHttpRequests(auth ->
-                auth.requestMatchers("/api/auth/**").permitAll()
+                auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allows browser preflight checks to skip auth
+                    .requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/books/**").permitAll() // Allow viewing books without auth
                     .anyRequest().authenticated()
             );
