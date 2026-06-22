@@ -55,7 +55,7 @@ services:
     container_name: library_react
     restart: unless-stopped
     ports:
-      - "3004:3000"
+      - "3000:3000"
     depends_on:
       - springboot
     networks:
