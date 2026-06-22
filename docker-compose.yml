@@ -6,10 +6,10 @@ services:
     container_name: library_mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: library_db
       MYSQL_USER: library_user
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-library_pass}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
@@ -36,13 +36,14 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/library_db?createDatabaseIfNotExist=true
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
-      JWT_SECRET: ${JWT_SECRET:-ChamLibrarySecretKeyChangeMeInProduction1234567890}
-      LIBRARY_APP_ALLOWEDORIGINS: ${ALLOWED_ORIGINS:-*}
-      LIBRARY_APP_ADMINUSERNAME: ${ADMIN_USERNAME:-admin}
-      LIBRARY_APP_ADMINPASSWORD: ${ADMIN_PASSWORD:-admin123}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      DDL_AUTO: ${DDL_AUTO}
+      JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     networks:
       - library_network
 
